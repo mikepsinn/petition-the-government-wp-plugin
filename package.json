@@ -6,6 +6,6 @@
     "watch": "wp-scripts start src/index.js --output-path=./build"
   },
   "devDependencies": {
-    "@wordpress/scripts": "^12.1.1"
+    "@wordpress/scripts": "^27.3.0"
   }
 }
