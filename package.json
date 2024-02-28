@@ -1,0 +1,11 @@
+{
+  "name": "petition-the-government",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "wp-scripts build src/index.js --output-path=./build",
+    "watch": "wp-scripts start src/index.js --output-path=./build"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^12.1.1"
+  }
+}
