@@ -31,47 +31,51 @@ function petition_the_government_render_block() {
 	}
 
 $form_html = <<<HTML
-<form id="petition-form" 
+<form id="petition-form"
 class="petition-form"
 action="index.php?rest_route=/petition-the-government/v1/submit"
  method="POST">
-    <div class="petition-field">
-        <label for="petition-name">Name</label>
-        <input type="text" id="petition-name" name="name" required>
-    </div>
-    
+	<div class="petition-field petition-field-inline">
+	    <label for="petition-first-name">First Name</label>
+	    <input type="text" id="petition-first-name" name="first_name" required>
+	</div>
+	<div class="petition-field petition-field-inline">
+	    <label for="petition-last-name">Last Name</label>
+	    <input type="text" id="petition-last-name" name="last_name" required>
+	</div>
+
     <div class="petition-field">
         <label for="petition-email">Email</label>
         <input type="email" id="petition-email" name="email" required>
     </div>
-    
-    <div class="petition-field">
+
+    <div class="petition-field petition-field-inline">
         <label for="petition-postal">Postal Code</label>
         <input type="text" id="petition-postal" name="postal">
     </div>
-    
+
 <!--    <div class="petition-field">
         <label for="petition-street">Street Address (Optional)</label>
         <input type="text" id="petition-street" name="street">
     </div>
-    
+
     <div class="petition-field">
         <label for="petition-organization">Organization (Optional)</label>
         <input type="text" id="petition-organization" name="organization">
     </div>
-    
+
     <div class="petition-field">
         <label for="petition-phone">Phone Number (Optional)</label>
         <input type="tel" id="petition-phone" name="phone">
     </div>-->
 
-    <div class="petition-field">
+    <div class="petition-field petition-field-inline">
         <label for="petition-country">Country</label>
         <select id="petition-country" name="country" onchange="toggleStateField()">
 $countryOptionsHtml
         </select>
     </div>
-    
+
 <!--    <div id="state-field" style="display: none;">
         <label for="petition-state">State</label>
         <select id="petition-state" name="state">
@@ -115,7 +119,8 @@ add_action('enqueue_block_assets', 'petition_the_government_enqueue_assets');
 
 function petition_the_government_handle_submit($request)
 {
-    $name = sanitize_text_field($request['name']);
+    $first_name = sanitize_text_field($request['first_name']);
+	$last_name = sanitize_text_field($request['last_name']);
     $email = sanitize_email($request['email']);
     $street = sanitize_text_field($request['street']); // Optional street address
     $organization = sanitize_text_field($request['organization']);
@@ -126,7 +131,7 @@ function petition_the_government_handle_submit($request)
     $user_id = wp_insert_user([
         'user_login' => $email,
         'user_email' => $email,
-        'display_name' => $name,
+        'display_name' => $first_name . ' ' . $last_name,
         'user_pass' => wp_generate_password(),
         'role' => 'subscriber',
 
@@ -140,6 +145,9 @@ function petition_the_government_handle_submit($request)
     }
 
     // Store the additional information in wp_usermeta
+
+	add_user_meta($user_id, 'first_name', $first_name, true);
+	add_user_meta($user_id, 'last_name', $last_name, true);
     if (!empty($street)) {
         add_user_meta($user_id, 'street', $street, true);
     }
@@ -191,7 +199,20 @@ add_action('rest_api_init', 'petition_the_government_register_rest_route');
 function petition_the_government_create_thank_you_page() {
 	$the_page_title = 'Thank You for Signing the Petition!';
 	$the_page_content = 'Thank you for signing the petition. Please share it with your friends on social media.';
-	$the_page = get_page_by_title($the_page_title);
+
+	$args = array(
+		'post_type' => 'page',
+		'name' => sanitize_title($the_page_title),
+		'posts_per_page' => 1,
+	);
+
+	$query = new WP_Query($args);
+
+	if ($query->have_posts()) {
+		return;
+	} else {
+		$the_page = null;
+	}
 
 	$page_url = home_url();
 	$sharing_text = urlencode("Please sign this petition to give everyone a super-intelligent AI doctor!");
@@ -207,6 +228,32 @@ function petition_the_government_create_thank_you_page() {
 <a href="' . $reddit_url . '" target="_blank">Share on Reddit</a>
 <a href="' . $facebook_url . '" target="_blank">Share on Facebook</a>';
 
+$the_page_content = '
+<!-- wp:paragraph {"align":"center"} -->
+<p class="has-text-align-center">Now share it with all your friends!</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:buttons {"layout":{"type":"flex","justifyContent":"center"},"style":{"spacing":{"margin":{"top":"var:preset|spacing|50"}}}} -->
+<div class="wp-block-buttons" style="margin-top:var(--wp--preset--spacing--50)">';
+
+$socials = [
+    'Facebook' => 'https://www.facebook.com/sharer/sharer.php?u=' . $page_url . '&t=Please sign our petition to give everyone a free super-intelligent robot doctor and accelerate clinical discovery!',
+    'Tweet' => 'https://twitter.com/intent/tweet?text=Please sign our petition to give everyone a free super-intelligent robot doctor and accelerate clinical discovery!&url=' . $page_url,
+    'WhatsApp' => 'https://wa.me/?text=Please sign our petition to give everyone a free super-intelligent robot doctor and accelerate clinical discovery! ' . $page_url,
+    'Telegram' => 'https://telegram.me/share/url?text=Please sign our petition to give everyone a free super-intelligent robot doctor and accelerate clinical discovery!&url=' . $page_url,
+    'Reddit' => 'https://reddit.com/submit?url=' . $page_url . '&title=Please sign our petition to give everyone a free super-intelligent robot doctor and accelerate clinical discovery!',
+    'LinkedIn' => 'https://www.linkedin.com/shareArticle?mini=true&url=' . $page_url . '&title=Please sign our petition to give everyone a free super-intelligent robot doctor and accelerate clinical discovery!&summary=Join us in our mission to revolutionize healthcare and clinical discovery. Sign the petition today!'
+];
+
+foreach ($socials as $name => $link) {
+    $the_page_content .= '<!-- wp:button -->
+    <div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="' . $link . '" target="_blank" rel="noopener">' . $name . '</a></div>
+    <!-- /wp:button -->';
+}
+
+$the_page_content .= '</div>
+<!-- /wp:buttons --></div>
+';
 
 	if (!$the_page) {
 		// Create post object

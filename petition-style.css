@@ -47,6 +47,11 @@
     max-height: 70px;
 }
 
+.petition-field-names {
+    display: inline-block;
+    margin-right: 10px;
+}
+
 .petition-button-container {
     text-align: center;
 }

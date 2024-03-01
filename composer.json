@@ -1,0 +1,16 @@
+{
+  "name": "your-vendor-name/your-plugin-name",
+  "description": "A brief description of your WordPress plugin",
+  "require-dev": {
+    "phpunit/phpunit": "^9.0"
+  },
+  "autoload": {
+    "psr-4": { "YourPluginNamespace\\": "src/" }
+  },
+  "scripts": {
+    "test": "phpunit"
+  },
+  "config": {
+    "bin-dir": "vendor/bin"
+  }
+}
