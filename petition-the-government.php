@@ -128,6 +128,13 @@ function petition_the_government_handle_submit($request)
     $country = sanitize_text_field($request['country']);
     $state = sanitize_text_field($request['state']);
 
+	$page = get_page_by_path('petition-thank-you', OBJECT, 'page');
+	if ($page) {
+		$redirect = get_permalink($page->ID);
+	} else {
+		$redirect = 'Page not found';
+	}
+
     $user_id = wp_insert_user([
         'user_login' => $email,
         'user_email' => $email,
@@ -139,7 +146,7 @@ function petition_the_government_handle_submit($request)
 
     if (is_wp_error($user_id)) {
 	    error_log($user_id->get_error_message());
-	    wp_redirect(home_url('/petition-thank-you/'));
+	    wp_redirect($redirect);
 	    exit;
         //return new WP_Error('user_create_failed', 'Failed to create user.', ['status' => 500]);
     }
@@ -166,7 +173,7 @@ function petition_the_government_handle_submit($request)
 
 	// If user is already logged in, redirect them to the thank you page
 	if (is_user_logged_in()) {
-		wp_redirect(home_url('/petition-thank-you/'));
+		wp_redirect($redirect);
 		exit;
 	}
 
@@ -177,7 +184,7 @@ function petition_the_government_handle_submit($request)
 		wp_set_auth_cookie($user->ID);
 		do_action('wp_login', $user->user_login, $user);
 		// Redirect to the thank you page
-		wp_redirect(home_url('/petition-thank-you/'));
+		wp_redirect($redirect);
 		exit;
 	}
 
@@ -202,7 +209,7 @@ function petition_the_government_create_thank_you_page() {
 
 	$args = array(
 		'post_type' => 'page',
-		'name' => sanitize_title($the_page_title),
+		'name' => 'petition-thank-you',
 		'posts_per_page' => 1,
 	);
 
