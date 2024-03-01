@@ -1,42 +1,34 @@
-name: Create Release and Upload Zip
-
+name: Deploy to WordPress.org
 on:
-  push:
-    tags:
-      - '*'
-
-jobs:
   release:
+    types: [published]
+jobs:
+  tag:
+    name: New release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: Install dependencies
-        run: |
-          # Add commands to install any dependencies here
-
-      - name: Create Zip
-        run: zip -r plugin.zip .
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Build
+#        run: |
+#          npm install
+#          npm run build
+      - name: WordPress Plugin Deploy
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@stable
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset
-        id: upload-release-asset
+          generate-zip: true
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}  # mikepsinn
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: quantimodo # optional, remove if GitHub repo name matches SVN slug, including capitalization
+          ASSETS_DIR: assets-wp-repo
+      - name: Upload release asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./plugin.zip
-          asset_name: plugin.zip
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ steps.deploy.outputs.zip-path }}
+          asset_name: ${{ github.event.repository.name }}.zip
           asset_content_type: application/zip
