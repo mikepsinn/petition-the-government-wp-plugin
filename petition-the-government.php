@@ -190,13 +190,15 @@ add_action('rest_api_init', 'petition_the_government_register_rest_route');
 
 function petition_the_government_create_thank_you_page() {
 	$the_page_title = 'Thank You for Signing the Petition!';
-	$the_page_content = 'Thank you for signing the petition. Share it with your friends on social media.';
+	$the_page_content = 'Thank you for signing the petition. Please share it with your friends on social media.';
 	$the_page = get_page_by_title($the_page_title);
 
+	$page_url = home_url();
+	$sharing_text = urlencode("Please sign this petition to give everyone a super-intelligent AI doctor!");
 
 // Create the social sharing URLs
-	$twitter_url = 'https://twitter.com/intent/tweet?text=' . urlencode($the_page_title) . '&url=' . urlencode($page_url);
-	$reddit_url = 'https://www.reddit.com/submit?title=' . urlencode($the_page_title) . '&url=' . urlencode($page_url);
+	$twitter_url = 'https://twitter.com/intent/tweet?text=' . $sharing_text. '&url=' . urlencode($page_url);
+	$reddit_url = 'https://www.reddit.com/submit?title=' . $sharing_text . '&url=' . urlencode($page_url);
 	$facebook_url = 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode($page_url);
 
 // Add the social sharing buttons to the page content
