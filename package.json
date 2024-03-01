@@ -3,9 +3,17 @@
   "version": "1.0.0",
   "scripts": {
     "build": "wp-scripts build src/index.js --output-path=./build",
-    "watch": "wp-scripts start src/index.js --output-path=./build"
+    "watch": "wp-scripts start src/index.js --output-path=./build",
+    "zip": "node ./scripts/zip.js"
   },
   "devDependencies": {
-    "@wordpress/scripts": "^12.1.1"
+    "@wordpress/scripts": "^12.1.1",
+    "archiver": "^5.3.2",
+    "gitignore-parser": "^0.0.2",
+    "glob": "^10.3.10"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.2",
+    "ignore": "^5.3.1"
   }
 }

@@ -35,61 +35,64 @@ $form_html = <<<HTML
 class="petition-form"
 action="index.php?rest_route=/petition-the-government/v1/submit"
  method="POST">
-    <div>
-        <label for="petition-name">Name:</label>
+    <div class="petition-field">
+        <label for="petition-name">Name</label>
         <input type="text" id="petition-name" name="name" required>
     </div>
     
-    <div>
-        <label for="petition-email">Email:</label>
+    <div class="petition-field">
+        <label for="petition-email">Email</label>
         <input type="email" id="petition-email" name="email" required>
     </div>
     
-    <div>
-        <label for="petition-postal">Postal Code:</label>
+    <div class="petition-field">
+        <label for="petition-postal">Postal Code</label>
         <input type="text" id="petition-postal" name="postal">
     </div>
     
-    <div>
-        <label for="petition-street">Street Address (Optional):</label>
+<!--    <div class="petition-field">
+        <label for="petition-street">Street Address (Optional)</label>
         <input type="text" id="petition-street" name="street">
     </div>
     
-    <div>
-        <label for="petition-organization">Organization (Optional):</label>
+    <div class="petition-field">
+        <label for="petition-organization">Organization (Optional)</label>
         <input type="text" id="petition-organization" name="organization">
     </div>
     
-    <div>
-        <label for="petition-phone">Phone Number (Optional):</label>
+    <div class="petition-field">
+        <label for="petition-phone">Phone Number (Optional)</label>
         <input type="tel" id="petition-phone" name="phone">
-    </div>
-    
-    <div>
-        <label for="petition-country">Country:</label>
+    </div>-->
+
+    <div class="petition-field">
+        <label for="petition-country">Country</label>
         <select id="petition-country" name="country" onchange="toggleStateField()">
 $countryOptionsHtml
         </select>
     </div>
     
-    <div id="state-field" style="display: none;">
-        <label for="petition-state">State:</label>
+<!--    <div id="state-field" style="display: none;">
+        <label for="petition-state">State</label>
         <select id="petition-state" name="state">
             <option value="AL">Alabama</option>
             <option value="AK">Alaska</option>
-            <!-- Add more states as needed -->
+            &lt;!&ndash; Add more states as needed &ndash;&gt;
         </select>
+    </div>-->
+    <div class="petition-button-container">
+	    <button type="submit">
+	        Sign Petition
+	    </button>
     </div>
-    
-    <button type="submit">
-        Sign Petition
-    </button>
 </form>
 <script>
     function toggleStateField() {
         var country = document.getElementById('petition-country').value;
         var stateField = document.getElementById('state-field');
-        stateField.style.display = country === 'USA' ? 'block' : 'none';
+        if(stateField){
+        	stateField.style.display = country === 'US' ? 'block' : 'none';
+        }
     }
     // Call toggleStateField on page load in case USA is preselected
     document.addEventListener('DOMContentLoaded', toggleStateField);
@@ -125,7 +128,8 @@ function petition_the_government_handle_submit($request)
         'user_email' => $email,
         'display_name' => $name,
         'user_pass' => wp_generate_password(),
-        'role' => 'subscriber'
+        'role' => 'subscriber',
+
     ]);
 
     if (is_wp_error($user_id)) {
@@ -150,6 +154,12 @@ function petition_the_government_handle_submit($request)
 	}
 	if(!empty($country)) {
 		add_user_meta($user_id, 'country', $country, true);
+	}
+
+	// If user is already logged in, redirect them to the thank you page
+	if (is_user_logged_in()) {
+		wp_redirect(home_url('/petition-thank-you/'));
+		exit;
 	}
 
 
@@ -182,6 +192,19 @@ function petition_the_government_create_thank_you_page() {
 	$the_page_title = 'Thank You for Signing the Petition!';
 	$the_page_content = 'Thank you for signing the petition. Share it with your friends on social media.';
 	$the_page = get_page_by_title($the_page_title);
+
+
+// Create the social sharing URLs
+	$twitter_url = 'https://twitter.com/intent/tweet?text=' . urlencode($the_page_title) . '&url=' . urlencode($page_url);
+	$reddit_url = 'https://www.reddit.com/submit?title=' . urlencode($the_page_title) . '&url=' . urlencode($page_url);
+	$facebook_url = 'https://www.facebook.com/sharer/sharer.php?u=' . urlencode($page_url);
+
+// Add the social sharing buttons to the page content
+	$the_page_content .= '<h3>Share the petition:</h3>
+<a href="' . $twitter_url . '" target="_blank">Share on Twitter</a>
+<a href="' . $reddit_url . '" target="_blank">Share on Reddit</a>
+<a href="' . $facebook_url . '" target="_blank">Share on Facebook</a>';
+
 
 	if (!$the_page) {
 		// Create post object
