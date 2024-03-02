@@ -152,9 +152,11 @@ function petition_the_government_handle_submit($request)
     }
 
     // Store the additional information in wp_usermeta
-
-	add_user_meta($user_id, 'first_name', $first_name, true);
-	add_user_meta($user_id, 'last_name', $last_name, true);
+	wp_update_user([
+		'ID' => $user_id,
+		'first_name' => $first_name,
+		'last_name' => $last_name
+	]);
     if (!empty($street)) {
         add_user_meta($user_id, 'street', $street, true);
     }
@@ -171,6 +173,7 @@ function petition_the_government_handle_submit($request)
 		add_user_meta($user_id, 'country', $country, true);
 	}
 
+	$user = wp_get_current_user();
 	// If user is already logged in, redirect them to the thank you page
 	if (is_user_logged_in()) {
 		wp_redirect($redirect);
