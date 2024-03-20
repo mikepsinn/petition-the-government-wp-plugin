@@ -7,7 +7,7 @@
     "zip": "node ./scripts/zip.js"
   },
   "devDependencies": {
-    "@wordpress/scripts": "^12.1.1",
+    "@wordpress/scripts": "^27.3.0",
     "archiver": "^5.3.2",
     "gitignore-parser": "^0.0.2",
     "glob": "^10.3.10"
