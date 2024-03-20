@@ -30,7 +30,37 @@ function petition_the_government_render_block() {
 		$countryOptionsHtml .= "<option value=\"$code\">$name</option>";
 	}
 
+	$google_client_id = get_option('petition_google_client_id');
+	$redirect_uri = home_url('/?rest_route=/petition-the-government/v1/google-oauth-callback');
+
+	$google_oauth_url = "https://accounts.google.com/o/oauth2/auth?client_id=" . urlencode($google_client_id) . "&redirect_uri=" . urlencode($redirect_uri) . "&response_type=code&scope=profile email";
+
+
 $form_html = <<<HTML
+<div class="google-button-container">
+	<a class="google-login-button" href="$google_oauth_url">
+		<button class="gsi-material-button">
+	  <div class="gsi-material-button-state"></div>
+	  <div class="gsi-material-button-content-wrapper">
+		<div class="gsi-material-button-icon">
+		  <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" xmlns:xlink="http://www.w3.org/1999/xlink" style="display: block;">
+			<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+			<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+			<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+			<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+			<path fill="none" d="M0 0h48v48H0z"></path>
+		  </svg>
+		</div>
+		<span class="gsi-material-button-contents">Sign with Google</span>
+		<span style="display: none;">Sign with Google</span>
+	  </div>
+	</button>
+	</a>
+</div>
+
+<div class="petition-or-separator">
+	<span>or</span>
+</div>
 <form id="petition-form"
 class="petition-form"
 action="index.php?rest_route=/petition-the-government/v1/submit"
@@ -203,8 +233,103 @@ function petition_the_government_register_rest_route()
         'permission_callback' => '__return_true',
     ]);
 }
-
 add_action('rest_api_init', 'petition_the_government_register_rest_route');
+
+// Define the callback function first
+function petition_the_government_handle_google_oauth_callback($request) {
+	$client_id = get_option('petition_google_client_id');
+	$client_secret = get_option('petition_google_client_secret');
+	$redirect_uri = home_url('/?rest_route=/petition-the-government/v1/google-oauth-callback');
+
+	$code = $request->get_param('code');
+
+	// Exchange the authorization code for an access token
+	$token_response = wp_remote_post('https://oauth2.googleapis.com/token', [
+		'body' => [
+			'code' => $code,
+			'client_id' => $client_id,
+			'client_secret' => $client_secret,
+			'redirect_uri' => $redirect_uri,
+			'grant_type' => 'authorization_code',
+		],
+	]);
+
+	if (is_wp_error($token_response) || wp_remote_retrieve_response_code($token_response) !== 200) {
+		return new WP_Error('token_exchange_failed', 'Failed to exchange authorization code for an access token.', ['status' => 500]);
+	}
+
+	$token_data = json_decode(wp_remote_retrieve_body($token_response), true);
+	$access_token = $token_data['access_token'];
+
+	// Use the access token to retrieve user information
+	$user_info_response = wp_remote_get('https://www.googleapis.com/oauth2/v2/userinfo', [
+		'headers' => [
+			'Authorization' => 'Bearer ' . $access_token,
+		],
+	]);
+
+	if (is_wp_error($user_info_response) || wp_remote_retrieve_response_code($user_info_response) !== 200) {
+		return new WP_Error('user_info_retrieval_failed', 'Failed to retrieve user information.', ['status' => 500]);
+	}
+
+	$user_info = json_decode(wp_remote_retrieve_body($user_info_response), true);
+
+	if ($user_info) {
+		$email = $user_info['email'];
+		$first_name = $user_info['given_name'];
+		$last_name = $user_info['family_name'];
+		$picture = $user_info['picture'];
+		$locale = $user_info['locale'];
+		$hd = $user_info['hd'] ?? null;
+
+		// Check if the user already exists, otherwise create a new user
+		$user = get_user_by('email', $email);
+		if (!$user) {
+			$user_id = wp_insert_user([
+				'user_login' => $email,
+				'user_email' => $email,
+				'display_name' => $first_name . ' ' . $last_name,
+				'user_pass' => wp_generate_password(),
+				'role' => 'subscriber',
+			]);
+			wp_update_user([
+				'ID' => $user_id,
+				'first_name' => $first_name,
+				'last_name' => $last_name
+			]);
+			// Store the additional information in wp_usermeta
+			add_user_meta($user_id, 'picture', $picture, true);
+			add_user_meta($user_id, 'locale', $locale, true);
+			if($hd){add_user_meta($user_id, 'hd', $hd, true);}
+			$user = get_user_by('id', $user_id);
+		}
+
+		// Log in the user
+		wp_set_current_user($user->ID, $user->user_login);
+		wp_set_auth_cookie($user->ID);
+		do_action('wp_login', $user->user_login, $user);
+
+		// Redirect to the thank you page
+		wp_redirect(home_url('/petition-thank-you'));
+		exit;
+	}
+
+	return new WP_Error('invalid_token', 'Invalid Google ID token.', ['status' => 400]);
+
+	// Redirect to the thank you page
+	wp_redirect(home_url('/petition-thank-you'));
+	exit;
+}
+
+// Register the REST API route
+function petition_the_government_register_google_oauth_callback_route() {
+	register_rest_route('petition-the-government/v1', '/google-oauth-callback', [
+		'methods' => 'GET',
+		'callback' => 'petition_the_government_handle_google_oauth_callback',
+		'permission_callback' => '__return_true',
+	]);
+}
+add_action('rest_api_init', 'petition_the_government_register_google_oauth_callback_route');
 
 function petition_the_government_create_thank_you_page() {
 	$the_page_title = 'Thank You for Signing the Petition!';
@@ -282,3 +407,76 @@ $the_page_content .= '</div>
 	}
 }
 register_activation_hook(__FILE__, 'petition_the_government_create_thank_you_page');
+
+function petition_the_government_admin_menu() {
+	add_options_page(
+		'Petition the Government Settings',
+		'Petition the Government',
+		'manage_options',
+		'petition-the-government-settings',
+		'petition_the_government_render_settings_page'
+	);
+}
+add_action('admin_menu', 'petition_the_government_admin_menu');
+
+function petition_the_government_render_settings_page() {
+	?>
+	<div class="wrap">
+		<h1>Petition the Government Settings</h1>
+		<form method="post" action="options.php">
+			<?php
+			settings_fields('petition_the_government_settings_group');
+			do_settings_sections('petition-the-government-settings');
+			submit_button();
+			?>
+		</form>
+	</div>
+	<?php
+}
+
+function petition_the_government_register_settings() {
+	register_setting('petition_the_government_settings_group', 'petition_google_client_id');
+	register_setting('petition_the_government_settings_group', 'petition_google_client_secret');
+
+	add_settings_section(
+		'petition_the_government_google_settings',
+		'Google Sign-In Settings',
+		'petition_the_government_google_settings_section_callback',
+		'petition-the-government-settings'
+	);
+
+	add_settings_field(
+		'petition_google_client_id',
+		'Google Client ID',
+		'petition_the_government_google_client_id_render',
+		'petition-the-government-settings',
+		'petition_the_government_google_settings'
+	);
+
+	add_settings_field(
+		'petition_google_client_secret',
+		'Google Client Secret',
+		'petition_the_government_google_client_secret_render',
+		'petition-the-government-settings',
+		'petition_the_government_google_settings'
+	);
+}
+add_action('admin_init', 'petition_the_government_register_settings');
+
+function petition_the_government_google_settings_section_callback() {
+	echo 'Enter your Google Sign-In client ID and client secret below:';
+}
+
+function petition_the_government_google_client_id_render() {
+	$client_id = get_option('petition_google_client_id');
+	?>
+	<input type="text" name="petition_google_client_id" value="<?php echo esc_attr($client_id); ?>" />
+	<?php
+}
+
+function petition_the_government_google_client_secret_render() {
+	$client_secret = get_option('petition_google_client_secret');
+	?>
+	<input type="text" name="petition_google_client_secret" value="<?php echo esc_attr($client_secret); ?>" />
+	<?php
+}

@@ -12,5 +12,8 @@
   },
   "config": {
     "bin-dir": "vendor/bin"
+  },
+  "require": {
+    "google/apiclient": "2.0"
   }
 }
